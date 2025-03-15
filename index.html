@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5th Grade AI Voice Chat</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #transcript {
+            padding: 10px;
+            margin: 10px 0;
+            color: #34495e;
+            font-size: 16px;
+            min-height: 24px;
+        }
+        .status {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>5th Grade AI Voice Chat</h1>
+        <div class="controls">
+            <button id="listenButton" onclick="requestPermissionAndListen()">Start Talking</button>
+            <div class="status" id="status"></div>
+            <p id="transcript"></p>
+        </div>
+    </div>
+
+    <div style="width: 0; height: 0;" id="VG_OVERLAY_CONTAINER">
+        <!-- Here is where TIXAE Agents renders the widget. -->
+    </div>
+
+    <script>
+        let recognition;
+        let isListening = false;
+        const synth = window.speechSynthesis;
+        const listenButton = document.getElementById('listenButton');
+        const statusDiv = document.getElementById('status');
+
+        async function requestPermissionAndListen() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                toggleListening();
+            } catch (err) {
+                console.error('Microphone permission error:', err);
+                statusDiv.textContent = "Error: Microphone permission denied. Please allow microphone access.";
+                statusDiv.style.color = "#dc3545";
+            }
+        }
+
+        function toggleListening() {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            if (!("webkitSpeechRecognition" in window)) {
+                alert("Your browser does not support speech recognition. Please try using Chrome!");
+                return;
+            }
+
+            if (!recognition) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = "en-US";
+
+                recognition.onstart = () => {
+                    console.log("Listening...");
+                    isListening = true;
+                    listenButton.textContent = "Stop Listening";
+                    listenButton.style.backgroundColor = "#dc3545";
+                    statusDiv.textContent = "Listening...";
+                    statusDiv.style.color = "#4CAF50";
+                };
+
+                recognition.onend = () => {
+                    console.log("Stopped listening");
+                    isListening = false;
+                    listenButton.textContent = "Start Talking";
+                    listenButton.style.backgroundColor = "#4CAF50";
+                    statusDiv.textContent = "";
+                };
+
+                recognition.onresult = (event) => {
+                    const text = event.results[0][0].transcript;
+                    document.getElementById("transcript").textContent = "You said: " + text;
+                    sendMessageToVoiceflow(text);
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech recognition error:", event.error);
+                    statusDiv.textContent = "Error: " + event.error;
+                    statusDiv.style.color = "#dc3545";
+                    isListening = false;
+                    listenButton.textContent = "Start Talking";
+                    listenButton.style.backgroundColor = "#4CAF50";
+                };
+            }
+
+            recognition.start();
+        }
+
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function sendMessageToVoiceflow(userInput) {
+            if (window.VG && window.VG.sendMessage) {
+                window.VG.sendMessage(userInput);
+            } else {
+                console.error('TIXAE Agents widget not initialized');
+                statusDiv.textContent = "Error: Chat widget not ready";
+                statusDiv.style.color = "#dc3545";
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isListening) {
+                stopListening();
+            }
+        });
+    </script>
+
+    <script>
+        (function() {
+            window.VG_CONFIG = {
+                ID: "FGBoYylgFHINLS2", // 5th Grade Agent ID
+                region: 'na',
+                render: 'bottom-right',
+                stylesheets: [
+                    "https://vg-bunny-cdn.b-cdn.net/vg_live_build/styles.css"
+                ]
+            }
+            var VG_SCRIPT = document.createElement("script");
+            VG_SCRIPT.src = "https://vg-bunny-cdn.b-cdn.net/vg_live_build/vg_bundle.js";
+            VG_SCRIPT.defer = true;
+            document.body.appendChild(VG_SCRIPT);
+        })();
+    </script>
+</body>
+</html> 
